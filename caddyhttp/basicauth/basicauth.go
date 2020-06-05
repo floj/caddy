@@ -64,8 +64,15 @@ func (a BasicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error
 
 	for _, rule := range a.Rules {
 		for _, res := range rule.Resources {
-			if !httpserver.Path(r.URL.Path).Matches(res) {
+			path := httpserver.Path(r.URL.Path)
+			if !path.Matches(res) {
 				continue
+			}
+
+			for _, ex := range rule.Except {
+				if path.Matches(ex) {
+					return a.Next.ServeHTTP(w, r)
+				}
 			}
 
 			// path matches; this endpoint is protected
@@ -125,6 +132,7 @@ type Rule struct {
 	Password  func(string) bool
 	Resources []string
 	Realm     string // See RFC 1945 and RFC 2617, default: "Restricted"
+	Except    []string
 }
 
 // PasswordMatcher determines whether a password matches a rule.
